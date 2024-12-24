@@ -1,0 +1,10 @@
+apiVersion: 1
+datasources: 
+  - 
+    access: proxy
+    basicAuth: false
+    jsonData: 
+      maxLines: 1000
+    name: Influx
+    type: influx
+    url: "http://influxdb:8086/"

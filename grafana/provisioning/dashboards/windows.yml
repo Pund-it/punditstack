@@ -1,12 +1,12 @@
 apiVersion: 1
 
 providers:
-- name: 'SNMP Dashboards'
+- name: 'Windows Dashboards'
   orgId: 1
-  folder: 'SNMP'
+  folder: 'Windows'
   type: file
   disableDeletion: false
   editable: true
   updateIntervalSeconds: 10
   options:
-    path: /etc/grafana/provisioning/dashboards/snmp
+    path: /etc/grafana/provisioning/dashboards/windows

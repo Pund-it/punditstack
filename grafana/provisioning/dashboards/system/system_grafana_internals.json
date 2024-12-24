@@ -28,34 +28,7 @@
   "graphTooltip": 0,
   "id": 10,
   "links": [
-    {
-      "asDropdown": true,
-      "icon": "external link",
-      "includeVars": false,
-      "keepTime": false,
-      "tags": [
-        "snmp"
-      ],
-      "targetBlank": false,
-      "title": "Mikrotik",
-      "tooltip": "",
-      "type": "dashboards",
-      "url": ""
-    },
-    {
-      "asDropdown": true,
-      "icon": "external link",
-      "includeVars": false,
-      "keepTime": false,
-      "tags": [
-        "system"
-      ],
-      "targetBlank": false,
-      "title": "System Overview",
-      "tooltip": "",
-      "type": "dashboards",
-      "url": ""
-    }
+  
   ],
   "liveNow": false,
   "panels": [
@@ -1953,7 +1926,7 @@
           "uid": "PBFA97CFB590B2093"
         },
         "definition": "",
-        "hide": 0,
+        "hide": 2,
         "includeAll": false,
         "label": "Pod",
         "multi": false,
@@ -1984,7 +1957,7 @@
           "uid": "PBFA97CFB590B2093"
         },
         "definition": "",
-        "hide": 0,
+        "hide": 2,
         "includeAll": false,
         "label": "Version",
         "multi": false,
