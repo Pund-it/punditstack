@@ -1,0 +1,220 @@
+
+networks:
+  pundit:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.254.0/24
+
+volumes:
+  prometheus_storage: {}
+  grafana_storage: {}
+  influxdb_data: {}
+
+services:
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:latest
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_THEME: "dark"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/syslog/syslog.json
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.2
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    user: root
+    cap_add:
+    - NET_ADMIN
+    - SYS_MODULE
+    volumes:
+      - grafana_storage:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    entrypoint: ["/bin/sh", "/etc/defaultroute.sh"]
+    command: /run.sh
+    privileged: true
+
+  loki:
+    container_name: loki
+    image: grafana/loki:latest
+    command: "/usr/bin/loki -config.file=/etc/loki/loki-config.yml"
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.3
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+    user: root
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+      - SYS_ADMIN
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    entrypoint: ["/bin/sh", "/etc/defaultroute.sh"]
+    privileged: true
+
+  prometheus:
+    container_name: prometheus
+    #image: prom/prometheus:latest
+    build:
+      context: .
+      dockerfile: ./prometheus/Dockerfile
+    command: "/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=1y --web.enable-admin-api --web.enable-lifecycle"
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.4
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_storage:/prometheus
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    entrypoint: ["/bin/sh", "/etc/defaultroute.sh"]
+
+  promtail:
+    container_name: promtail
+    #image: grafana/promtail:latest
+    build:
+      context: .
+      dockerfile: ./promtail/Dockerfile
+    command: "/usr/bin/promtail -config.file=/etc/promtail/promtail-config.yml"
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.5
+    ports:
+      - "1514:1514"
+      - "9080:9080"
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    entrypoint: ["/bin/sh", "/etc/defaultroute.sh"]
+
+  syslog-ng:
+    container_name: syslog-ng
+    #image: balabit/syslog-ng:latest
+    build:
+      context: .
+      dockerfile: ./syslog-ng/Dockerfile
+    command: "/usr/sbin/syslog-ng -F -edv"
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.6
+    ports:
+      - "514:514/udp"
+      - "601:601/tcp"
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./syslog-ng/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    entrypoint: ["/bin/sh", "/etc/defaultroute.sh"]
+
+  telegraf:
+    container_name: telegraf
+    build:
+      context: .
+      dockerfile: ./telegraf/Dockerfile
+    #image: telegraf
+    restart: always
+    depends_on:
+      - influxdb
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.7
+    ports:
+      - "8125:8125"
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    entrypoint: /bin/sh -c "/etc/defaultroute.sh && telegraf"
+
+  influxdb:
+    container_name: influxdb
+    image: influxdb:1.8-alpine
+    restart: always
+    environment:
+      - INFLUXDB_DB=influx
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=adminpundit
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.8
+    ports:
+      - "8086:8086"
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    entrypoint: /bin/sh -c "apk add --no-cache bash && /etc/defaultroute.sh && influxd"  
+
+  snmp_exporter:
+    container_name: snmp_exporter
+    image: prom/snmp-exporter
+    restart: always
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.9
+    ports:
+      - "9116:9116"
+    volumes:
+      - ./snmp_exporter/snmp_exporter.yml:/snmp.yml:ro
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    entrypoint: /bin/sh -c "/etc/defaultroute.sh && /bin/snmp_exporter"
+    cap_add:
+      - NET_ADMIN
+
+  wireguard:
+    container_name: wireguard
+    image: linuxserver/wireguard
+    restart: unless-stopped
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.10
+    volumes:
+      - ./wg:/config
+      - /lib/modules:/lib/modules:ro
+      - ./wg/custom-cont-init.d/iptables-setup.sh:/config/custom-cont-init.d/iptables-setup.sh:ro
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+    entrypoint: /bin/sh -c "/config/custom-cont-init.d/iptables-setup.sh && /init"
+    privileged: true
+
+  debug:
+    image: appropriate/curl
+    container_name: debug
+    cap_add:
+      - NET_ADMIN
+    networks:
+      pundit:
+        ipv4_address: 192.168.254.100
+    volumes:
+      - ./scripts/defaultroute.sh:/etc/defaultroute.sh:ro
+    command: tail -f /dev/null
+    entrypoint: /bin/sh -c "apk add --no-cache bash && /etc/defaultroute.sh && tail -f /dev/null"
