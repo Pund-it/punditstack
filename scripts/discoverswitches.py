@@ -14,22 +14,27 @@ def get_mac_manufacturer(mac):
         return None
     return "Unknown"
 
-# Function to check if a device responds to SNMP
+# Improved SNMP check function with detailed error reporting
 def check_snmp(ip):
     try:
-        # Using snmpget from snmpwalk tool (installed system-wide)
-        # The OID '1.3.6.1.2.1.1.1.0' is the sysDescr OID (sys description)
+        # Use snmpget to query the sysDescr OID (1.3.6.1.2.1.1.1.0)
         result = subprocess.run(
             ['snmpget', '-v2c', '-c', 'public', f'{ip}:161', '1.3.6.1.2.1.1.1.0'],
             capture_output=True, text=True
         )
-
-        # If the SNMP query was successful
+        
+        # Check if the SNMP request was successful
         if result.returncode == 0:
+            print(f"SNMP Success: {result.stdout}")
             return "Yes"
         else:
+            print(f"SNMP Error: {result.stderr}")
             return "No"
+    except FileNotFoundError:
+        print("Error: snmpget tool not found. Please ensure snmpget is installed.")
+        return "No"
     except Exception as e:
+        print(f"Unexpected error while checking SNMP for {ip}: {str(e)}")
         return "No"
 
 # Function to load the switch manufacturer list
@@ -45,7 +50,6 @@ def load_switch_manufacturers(file_path):
 def load_discovered_switches(file_path):
     try:
         with open(file_path, 'r') as f:
-            # Read the existing switches and track them by their IP address
             return {line.strip().split(',')[0] for line in f.readlines() if line.strip()}
     except FileNotFoundError:
         return set()
