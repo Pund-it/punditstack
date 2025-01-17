@@ -1,1 +1,8 @@
-pip install python-nmap pysnmp requests
+python-nmap
+pysnmp
+requests
+argparse
+subprocess
+getpass
+os
+re
