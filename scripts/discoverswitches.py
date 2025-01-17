@@ -90,14 +90,17 @@ def discover_devices(subnet):
                 manufacturer = get_mac_manufacturer(mac)
                 print(f"Host: {host}, MAC: {mac}, Manufacturer: {manufacturer}")
 
-                # Check if manufacturer matches any in the switch list and store only switches
+                # If manufacturer matches any in the switch list and SNMP response is successful, store it
                 if manufacturer and any(sw in manufacturer.lower() for sw in switch_manufacturers):
-                    # Check if the device is already in the file (by IP address)
                     if host not in discovered_switches:
                         switches_to_save.append((host, mac, manufacturer, snmp_response))
                         discovered_switches.add(host)  # Add to discovered list to avoid duplicates
-            else:
-                print(f"Host: {host} (MAC not available)")
+
+            # If SNMP response is "Yes", we add it as a potential switch even if MAC is not valid
+            if snmp_response == "Yes" and host not in discovered_switches:
+                # If SNMP response is "Yes", add it regardless of manufacturer or MAC address
+                switches_to_save.append((host, "Unknown", "Unknown", snmp_response))
+                discovered_switches.add(host)  # Add to discovered list to avoid duplicates
 
         # Save only the potential switches to the file (if not already saved)
         save_discovered_switches("scripts/discoveredswitches.txt", switches_to_save)
