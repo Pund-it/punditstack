@@ -2,7 +2,3 @@ python-nmap
 pysnmp
 requests
 argparse
-subprocess
-getpass
-os
-re

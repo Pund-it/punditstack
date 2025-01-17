@@ -3,7 +3,8 @@ Pund-IT-Stack is a dockerized monitoring stack for MSRV Clients.
 
 Requirements:
 Docker Compose
-pip install requests
+pip install -r requirements.txt
+nmap (apt/yum install)
 
 
 Install & Getting Started:
