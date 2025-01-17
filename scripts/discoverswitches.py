@@ -1,6 +1,6 @@
 import nmap
 import requests
-from pysnmp.hlapi import getCmd, SnmpEngine, CommunityData, UdpTransportTarget, ContextData, ObjectType, ObjectIdentity
+import subprocess
 import time
 import argparse
 
@@ -14,33 +14,27 @@ def get_mac_manufacturer(mac):
         return None
     return "Unknown"
 
-# Function to check if a device responds to SNMP using pysnmp
+# Function to check if a device responds to SNMP using snmpget
 def check_snmp(ip):
     try:
-        # SNMP OID for sysDescr (1.3.6.1.2.1.1.1.0) - System Description
-        error_indication, error_status, error_index, var_binds = next(
-            getCmd(SnmpEngine(),
-                   CommunityData('public', mpModel=0),  # SNMP community string
-                   UdpTransportTarget((ip, 161)),  # Target IP and SNMP port
-                   ContextData(),
-                   ObjectType(ObjectIdentity('1.3.6.1.2.1.1.1.0'))  # sysDescr OID
-            )
+        # Use snmpget to query the sysDescr OID (1.3.6.1.2.1.1.1.0)
+        result = subprocess.run(
+            ['snmpget', '-v2c', '-c', 'public', f'{ip}:161', '1.3.6.1.2.1.1.1.0'],
+            capture_output=True, text=True
         )
-
-        if error_indication:
-            print(f"SNMP error for {ip}: {error_indication}")
-            return "No"
-        elif error_status:
-            print(f"SNMP error status for {ip}: {error_status}")
-            return "No"
-        else:
-            # Successful SNMP response, extract the description
-            for var_bind in var_binds:
-                print(f"SNMP Response from {ip}: {var_bind[1]}")
+        
+        # Check if the SNMP query was successful
+        if result.returncode == 0:
+            print(f"SNMP Success: {result.stdout}")
             return "Yes"
-
+        else:
+            print(f"SNMP Error: {result.stderr}")
+            return "No"
+    except FileNotFoundError:
+        print("Error: snmpget tool not found. Please ensure snmpget is installed.")
+        return "No"
     except Exception as e:
-        print(f"SNMP error while querying {ip}: {str(e)}")
+        print(f"Unexpected error while checking SNMP for {ip}: {str(e)}")
         return "No"
 
 # Function to load the switch manufacturer list
@@ -88,7 +82,7 @@ def discover_devices(subnet):
             manufacturer = None
             snmp_response = "No"
 
-            # Check for SNMP response for every device using pysnmp
+            # Check for SNMP response for every device using snmpget
             snmp_response = check_snmp(host)
             print(f"SNMP Response from {host}: {snmp_response}")
 
