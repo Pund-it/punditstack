@@ -45,6 +45,7 @@ def load_switch_manufacturers(file_path):
 def load_discovered_switches(file_path):
     try:
         with open(file_path, 'r') as f:
+            # Read the existing switches and track them by their IP address
             return {line.strip().split(',')[0] for line in f.readlines() if line.strip()}
     except FileNotFoundError:
         return set()
@@ -64,13 +65,11 @@ def discover_devices(subnet):
     switch_manufacturers = load_switch_manufacturers("scripts/switchmfglist")
     scanner = nmap.PortScanner()
 
-    switches_to_save = []
-
-    print(f"Starting discovery on subnet: {subnet}")
-
     # Run the scan 4 times over 5 minutes
     for scan_count in range(4):
         print(f"\nRunning scan {scan_count + 1} of 4...")
+
+        switches_to_save = []  # Reset for each scan
 
         scanner.scan(hosts=subnet, arguments='-sn')
 
@@ -89,22 +88,22 @@ def discover_devices(subnet):
 
                 # Check if manufacturer matches any in the switch list and store only switches
                 if manufacturer and any(sw in manufacturer.lower() for sw in switch_manufacturers):
-                    if f"{host}" not in discovered_switches:
+                    # Check if the device is already in the file (by IP address)
+                    if host not in discovered_switches:
                         switches_to_save.append((host, mac, manufacturer, snmp_response))
+                        discovered_switches.add(host)  # Add to discovered list to avoid duplicates
             else:
                 print(f"Host: {host} (MAC not available)")
+
+        # Save only the potential switches to the file (if not already saved)
+        save_discovered_switches("scripts/discoveredswitches.txt", switches_to_save)
 
         # Wait for 1 minute before the next scan (approximately 5 minutes total for 4 scans)
         if scan_count < 3:
             print("\nWaiting for 1 minute before the next scan...")
             time.sleep(60)
 
-    # Save only the potential switches to the file
-    save_discovered_switches("scripts/discoveredswitches.txt", switches_to_save)
-
-    print("\nPotential switches added to file:")
-    for switch in switches_to_save:
-        print(f"Switch -> IP: {switch[0]}, MAC: {switch[1]}, Manufacturer: {switch[2]}, SNMP Response: {switch[3]}")
+    print("\nDiscovery completed.")
 
 if __name__ == "__main__":
     # Set up command-line argument parsing
