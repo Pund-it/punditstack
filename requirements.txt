@@ -2,4 +2,4 @@ python-nmap
 pysnmp
 requests
 argparse
-nmap
+python-nmap
